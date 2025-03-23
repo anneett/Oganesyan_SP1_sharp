@@ -87,20 +87,17 @@ wstring mapreceive(header& h)
 
 extern "C" {
 
-    __declspec(dllexport) void __stdcall SendData(int selected_thread, const wchar_t* text)
-    {
+    __declspec(dllexport) HANDLE __stdcall sendData(int addr, const wchar_t* str) {
         WaitForSingleObject(hMutex, INFINITE);
-        mapsend(selected_thread, text);
+        HANDLE result = mapsend(addr, str);
         ReleaseMutex(hMutex);
+        return result;
+    }
 
-        //  if (hSendEvent != NULL)
-        //  {
-        //      SetEvent(hSendEvent);
-        //      CloseHandle(hSendEvent);
-        //  }
-    };
-
-    //  __declspec(dllimport) string getMessage(header& h) {
-    // 
-    //  };
+    __declspec(dllexport) wstring __stdcall getData(header& h) {
+        WaitForSingleObject(hMutex, INFINITE);
+        wstring result = mapreceive(h);
+        ReleaseMutex(hMutex);
+        return result;
+    }
 }

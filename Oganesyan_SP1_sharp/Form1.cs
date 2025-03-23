@@ -26,7 +26,7 @@ namespace Oganesyan_SP1_sharp
         System.Threading.EventWaitHandle confirmEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ConfirmEvent");
 
         [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll", CharSet = CharSet.Unicode)]
-        private static extern void SendData(int selected_thread, string text);
+        private static extern void sendData(int selected_thread, string text);
         public Form1()
         {
             InitializeComponent();
@@ -111,25 +111,22 @@ namespace Oganesyan_SP1_sharp
         }
         private void send_Click(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(textBox1.Text))
+            if (!string.IsNullOrEmpty(textBox1.Text) & listBox.SelectedItem != null)
             {
                 int selectedThread = -2;
-                if (listBox.SelectedItem != null)
+                string sel = listBox.SelectedItem.ToString();
+                if (sel == "Главный поток")
+                    selectedThread = -1;
+                else if (sel != "Все потоки")
                 {
-                    string sel = listBox.SelectedItem.ToString();
-                    if (sel == "Главный поток")
-                        selectedThread = -1;
-                    else if (sel != "Все потоки")
+                    string[] parts = sel.Split(' ');
+                    if (parts.Length == 2 && int.TryParse(parts[1], out int threadNum))
                     {
-                        string[] parts = sel.Split(' ');
-                        if (parts.Length == 2 && int.TryParse(parts[1], out int threadNum))
-                        {
-                            selectedThread = threadNum;
-                        }
+                        selectedThread = threadNum;
                     }
                 }
-
-                SendData(selectedThread, textBox1.Text);
+             
+                sendData(selectedThread, textBox1.Text);
                 sendEvent.Set();
                 confirmEvent.WaitOne();
             }

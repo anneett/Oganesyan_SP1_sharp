@@ -4,7 +4,6 @@
 using namespace std;
 
 HANDLE hEvent;
-//	HANDLE hMutex;
 
 enum MessageTypes
 {
@@ -104,7 +103,6 @@ void MyThread(Session* session)
 			}
 			case MT_DATA:
 			{
-				//	SafeWrite("session", session->sessionID, "data", m.data);
 				if (session->sessionID >= 0)
 				{
 					wstring filename = to_wstring(session->sessionID) + L".txt";
@@ -128,9 +126,7 @@ void MyThread(Session* session)
 int main(int argc, char* argv[])
 {
 	_setmode(_fileno(stdout), _O_U16TEXT);
-
 	InitializeCriticalSection(&cs);
-	//	hMutex = CreateMutex(NULL, FALSE, NULL);
 
 	vector<Session*> sessions;
 	vector<thread> threads;
@@ -173,7 +169,7 @@ int main(int argc, char* argv[])
 		case 2:
 		{
 			header h;
-			wstring data = mapreceive(h);
+			wstring data = getData(h);
 			//	string message = getMessage(h);
 			//	sessions[i]->addMessage(MT_DATA, message);
 			//	HANDLE hFile = CreateFile(L"file.dat", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, 0);
@@ -183,7 +179,6 @@ int main(int argc, char* argv[])
 			//	WriteFile(hFile, &i, sizeof(i), &dwDone, NULL);
 			//	wcout << dwDone << endl;
 			//	CloseHandle(hFile);
-
 			wstring message(data.begin(), data.end());
 			if (h.addr == -2)
 			{
@@ -218,12 +213,8 @@ int main(int argc, char* argv[])
 		}
 		}
 	}
-
-	//	WaitForMultipleObjects((DWORD)threads.size(), threads.data(), TRUE, INFINITE);
-
 	SetEvent(hConfirmEvent);
 	DeleteCriticalSection(&cs);
-	//	CloseHandle(hMutex);
 
     return 0;
 }
