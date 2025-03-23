@@ -103,17 +103,15 @@ void MyThread(Session* session)
 			}
 			case MT_DATA:
 			{
-				if (session->sessionID >= 0)
+				wstring filename = to_wstring(session->sessionID) + L".txt";
+				wofstream fout(filename, ios::app);
+				fout.imbue(locale(locale(), new codecvt_utf8<wchar_t>));
+				if (fout.is_open())
 				{
-					wstring filename = to_wstring(session->sessionID) + L".txt";
-					wofstream fout(filename, ios::app);
-					fout.imbue(locale(locale(), new codecvt_utf8<wchar_t>));
-					if (fout.is_open())
-					{
-						fout << m.data << "\n";
-						fout.close();
-					}
+					fout << m.data << "\n";
+					fout.close();
 				}
+
 				Sleep(500 * session->sessionID);
 				break;
 			}
@@ -189,7 +187,6 @@ int main(int argc, char* argv[])
 			}
 			else if (h.addr == -1)
 			{
-				SafeWrite(L"Сообщение отправлено главному потоку.");
 				SafeWrite(L"Главный поток:", message);
 			}
 			else
@@ -208,13 +205,21 @@ int main(int argc, char* argv[])
 		}
 		case 3:
 		{
+			for (auto& session : sessions)
+			{
+				session->addMessage(MT_CLOSE);
+			}
+			for (auto& thread : threads)
+			{
+				if (thread.joinable())
+					thread.join();
+			}
 			SetEvent(hConfirmEvent);
+			DeleteCriticalSection(&cs);
 			return 0;
 		}
 		}
 	}
-	SetEvent(hConfirmEvent);
 	DeleteCriticalSection(&cs);
-
     return 0;
 }

@@ -37,6 +37,7 @@ namespace Oganesyan_SP1_sharp
             if (childProcess != null && !childProcess.HasExited)
             {
                 closeEvent.Set();
+                confirmEvent.WaitOne();
                 childProcess = null;
             }
         }
@@ -111,7 +112,7 @@ namespace Oganesyan_SP1_sharp
         }
         private void send_Click(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(textBox1.Text) & listBox.SelectedItem != null)
+            if (!string.IsNullOrEmpty(textBox1.Text) && listBox.SelectedItem != null)
             {
                 int selectedThread = -2;
                 string sel = listBox.SelectedItem.ToString();
