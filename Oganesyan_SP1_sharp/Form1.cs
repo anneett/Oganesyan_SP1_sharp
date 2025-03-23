@@ -27,13 +27,11 @@ namespace Oganesyan_SP1_sharp
 
         [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll", CharSet = CharSet.Unicode)]
         private static extern void SendData(int selected_thread, string text);
-
         public Form1()
         {
             InitializeComponent();
             this.FormClosing += Form_Closing;
         }
-
         private void Form_Closing(object sender, FormClosingEventArgs e)
         {
             if (childProcess != null && !childProcess.HasExited)
@@ -42,7 +40,6 @@ namespace Oganesyan_SP1_sharp
                 childProcess = null;
             }
         }
-
         private void ChildProcess_Exited(object sender, EventArgs e)
         {
             if (InvokeRequired)
@@ -59,7 +56,6 @@ namespace Oganesyan_SP1_sharp
                 childProcess = null;
             }
         }
-
         private void start_Click(object sender, EventArgs e)
         {
 
@@ -88,7 +84,6 @@ namespace Oganesyan_SP1_sharp
                 }
             }
         }
-
         private void stop_Click(object sender, EventArgs e)
         {
             if (childProcess == null || childProcess.HasExited)
@@ -96,22 +91,24 @@ namespace Oganesyan_SP1_sharp
                 return;
             }
 
-            if (!(childProcess == null || childProcess.HasExited))
+            if (listBox.Items.Count <= 2)
             {
+                closeEvent.Set();
+                childProcess = null;
+            }
+            else
+            {
+                stopEvent.Set();
+                confirmEvent.WaitOne();
+                listBox.Items.RemoveAt(listBox.Items.Count - 1);
+
                 if (listBox.Items.Count <= 2)
                 {
                     closeEvent.Set();
                     childProcess = null;
                 }
-                else
-                {
-                    stopEvent.Set();
-                    confirmEvent.WaitOne();
-                    listBox.Items.RemoveAt(listBox.Items.Count - 1);
-                }
             }
         }
-
         private void send_Click(object sender, EventArgs e)
         {
             if (!string.IsNullOrEmpty(textBox1.Text))
@@ -131,8 +128,7 @@ namespace Oganesyan_SP1_sharp
                         }
                     }
                 }
-                Console.WriteLine("Выбранный поток: " + selectedThread);
-                Console.WriteLine(textBox1.Text);
+
                 SendData(selectedThread, textBox1.Text);
                 sendEvent.Set();
                 confirmEvent.WaitOne();

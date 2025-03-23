@@ -187,19 +187,19 @@ int main(int argc, char* argv[])
 			wstring message(data.begin(), data.end());
 			if (h.addr == -2)
 			{
-				wcout << L"Сообщение отправлено всем потокам." << h.addr << endl;
+				SafeWrite(L"Сообщение отправлено всем потокам.");
 				for (auto& sess : sessions)
 					sess->addMessage(MT_DATA, message);
-				SafeWrite(L"Главный поток: " + message);
+				SafeWrite(L"Главный поток:", message);
 			}
 			else if (h.addr == -1)
 			{
-				wcout << L"Сообщение отправлено главному потоку." << h.addr << endl;
-				SafeWrite(L"Главный поток: " + message);
+				SafeWrite(L"Сообщение отправлено главному потоку.");
+				SafeWrite(L"Главный поток:", message);
 			}
 			else
 			{
-				wcout << L"Сообщение " << h.addr << L" потоку." << endl;
+				SafeWrite(L"Сообщение записано в .txt файл потока", h.addr);
 				int index = h.addr;
 				if (index >= 0 && index < sessions.size())
 				{
