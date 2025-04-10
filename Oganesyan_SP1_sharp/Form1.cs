@@ -18,44 +18,26 @@ namespace Oganesyan_SP1_sharp
 {
     public partial class Form1 : Form
     {
-        Process childProcess = null;
-        System.Threading.EventWaitHandle stopEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "StopEvent");
-        System.Threading.EventWaitHandle startEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "StartEvent");
-        System.Threading.EventWaitHandle closeEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "CloseEvent");
-        System.Threading.EventWaitHandle sendEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "SendEvent");
-        System.Threading.EventWaitHandle confirmEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ConfirmEvent");
+        Process childProcess;
 
-        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll", CharSet = CharSet.Unicode)]
+        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
+            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        private static extern void startThread(int selected_thread, string text);
+
+        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
+            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        private static extern void stopThread(int selected_thread, string text);
+
+        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
+            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         private static extern void sendData(int selected_thread, string text);
+
+        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
+            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        private static extern void confirmThread(int selected_thread, string text);
         public Form1()
         {
             InitializeComponent();
-            this.FormClosing += Form_Closing;
-        }
-        private void Form_Closing(object sender, FormClosingEventArgs e)
-        {
-            if (childProcess != null && !childProcess.HasExited)
-            {
-                closeEvent.Set();
-                confirmEvent.WaitOne();
-                childProcess = null;
-            }
-        }
-        private void ChildProcess_Exited(object sender, EventArgs e)
-        {
-            if (InvokeRequired)
-            {
-                this.Invoke(new Action(() =>
-                {
-                    listBox.Items.Clear();
-                    childProcess = null;
-                }));
-            }
-            else
-            {
-                listBox.Items.Clear();
-                childProcess = null;
-            }
         }
         private void start_Click(object sender, EventArgs e)
         {
@@ -72,15 +54,14 @@ namespace Oganesyan_SP1_sharp
             {
                 childProcess = Process.Start("C:/Users/egiaz/Documents/GitHub/Oganesyan_SP1/Oganesyan_SP1_sharp/x64/Debug/Oganesyan_SP1_plus.exe");
                 childProcess.EnableRaisingEvents = true;
-                childProcess.Exited += ChildProcess_Exited;
             }
             else
             {
                 int existingThreads = listBox.Items.Count - 2;
                 for (int i = 0; i < N; i++)
                 {
-                    startEvent.Set();
-                    confirmEvent.WaitOne();
+                    startThread(existingThreads + i, "StartThread");
+                    confirmThread(existingThreads + i, "Confirm");
                     listBox.Items.Add($"Поток {existingThreads + i}");
                 }
             }
@@ -94,18 +75,20 @@ namespace Oganesyan_SP1_sharp
 
             if (listBox.Items.Count <= 2)
             {
-                closeEvent.Set();
+                stopThread(0, "Close");
+                confirmThread(0, "Confirm");
                 childProcess = null;
             }
             else
             {
-                stopEvent.Set();
-                confirmEvent.WaitOne();
+                stopThread(listBox.Items.Count - 3, "StopThread");
+                confirmThread(listBox.Items.Count - 3, "Confirm");
                 listBox.Items.RemoveAt(listBox.Items.Count - 1);
 
                 if (listBox.Items.Count <= 2)
                 {
-                    closeEvent.Set();
+                    stopThread(0, "Close");
+                    confirmThread(0, "Confirm");
                     childProcess = null;
                 }
             }
@@ -128,8 +111,7 @@ namespace Oganesyan_SP1_sharp
                 }
              
                 sendData(selectedThread, textBox1.Text);
-                sendEvent.Set();
-                confirmEvent.WaitOne();
+                confirmThread(selectedThread, "Confirm");
             }
         }
     }

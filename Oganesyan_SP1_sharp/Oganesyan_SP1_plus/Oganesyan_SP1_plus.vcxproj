@@ -128,9 +128,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Message.cpp" />
     <ClCompile Include="Oganesyan_l1.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="asio.h" />
+    <ClInclude Include="Message.h" />
+    <ClInclude Include="Session.h" />
     <ClInclude Include="SysProg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

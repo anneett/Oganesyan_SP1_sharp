@@ -1,21 +1,33 @@
 #include "SysProg.h"
+#include "Session.h"
 #include "../../Oganesyan_Dll/dllmain.cpp"
 
 using namespace std;
 
-HANDLE hEvent;
+//void launchClient(wstring path)
+//{
+//	STARTUPINFO si = { sizeof(si) };
+//	PROCESS_INFORMATION pi;
+//	CreateProcess(NULL, path.data(), NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+//	CloseHandle(pi.hThread);
+//	CloseHandle(pi.hProcess);
+//}
 
-enum MessageTypes
-{
-	MT_CLOSE,
-	MT_DATA,
-};
+map<int, shared_ptr<Session>> sessions;
+mutex sessionsMutex;
+int maxID = 0;
 
-struct MessageHeader
-{
-	int messageType;
-	int size;
-};
+//enum MessageTypes
+//{
+//	MT_CLOSE,
+//	MT_DATA,
+//};
+
+//struct MessageHeader
+//{
+//	int messageType;
+//	int size;
+//};
 
 struct Message
 {
@@ -29,61 +41,6 @@ struct Message
 	}
 };
 
-class Session
-{
-	queue<Message> messages;
-	CRITICAL_SECTION cs;
-	HANDLE hEvent;
-
-public:
-	int sessionID;
-
-	Session(int sessionID)
-		:sessionID(sessionID)
-	{
-		InitializeCriticalSection(&cs);
-		hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	}
-
-	~Session()
-	{
-		DeleteCriticalSection(&cs);
-		CloseHandle(hEvent);
-	}
-
-	void addMessage(Message& m)
-	{
-		EnterCriticalSection(&cs);
-		messages.push(m);
-		SetEvent(hEvent);
-		LeaveCriticalSection(&cs);
-	}
-
-	bool getMessage(Message& m)
-	{
-		bool res = false;
-		WaitForSingleObject(hEvent, INFINITE);
-		EnterCriticalSection(&cs);
-		if (!messages.empty())
-		{
-			res = true;
-			m = messages.front();
-			messages.pop();
-		}
-		if (messages.empty())
-		{
-			ResetEvent(hEvent);
-		}
-		LeaveCriticalSection(&cs);
-		return res;
-	}
-
-	void addMessage(MessageTypes messageType, const wstring& data = L"")
-	{
-		Message m(messageType, data);
-		addMessage(m);
-	}
-};
 
 void MyThread(Session* session)
 {
@@ -96,6 +53,7 @@ void MyThread(Session* session)
 			switch (m.header.messageType)
 			{
 			case MT_CLOSE:
+			//MT_EXIT
 			{
 				SafeWrite(L"session", session->sessionID, L"closed");
 				delete session;
@@ -121,105 +79,106 @@ void MyThread(Session* session)
 	return;
 }
 
-int main(int argc, char* argv[])
+void processClient(tcp::socket s)
 {
-	_setmode(_fileno(stdout), _O_U16TEXT);
-	InitializeCriticalSection(&cs);
 
-	vector<Session*> sessions;
-	vector<thread> threads;
-
-	HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, L"StartEvent");
-	HANDLE hStopEvent = CreateEvent(NULL, FALSE, FALSE, L"StopEvent");
-	HANDLE hCloseEvent = CreateEvent(NULL, FALSE, FALSE, L"CloseEvent");
-	HANDLE hSendEvent = CreateEvent(NULL, FALSE, FALSE, L"SendEvent");
-	HANDLE hConfirmEvent = CreateEvent(NULL, FALSE, FALSE, L"ConfirmEvent");
-	HANDLE hControlEvents[4] = { hStartEvent, hStopEvent, hSendEvent, hCloseEvent };
-
-	int i = 0;
-
-	while (true)
+	try
 	{
-		int n = WaitForMultipleObjects(4, hControlEvents, FALSE, INFINITE) - WAIT_OBJECT_0;
-
-		switch (n)
+		Message m;
+		//vector<Session*> sessions;
+		//vector<thread> threads;
+		int code = m.receive(s);
+		cout << m.header.to << ": " << m.header.from << ": " << m.header.type << ": " << code << endl;
+		switch (code)
 		{
-		case 0:
+		case MT_INIT:
 		{
-			sessions.push_back(new Session(i));
+			unique_lock<mutex> lock(sessionsMutex);
+			auto session = make_shared<Session>(++maxID, m.data);
+			sessions[session->id] = session;
 			threads.emplace_back(MyThread, sessions.back());
-			i++;
-			SetEvent(hConfirmEvent);
+			//Message::send(s, session->id, MR_BROKER, MT_INIT);
 			break;
 		}
-		case 1:
+		case MT_EXIT:
 		{
-			i--;
-			sessions[i]->addMessage(MT_CLOSE);
-			threads.back().join();
-			threads.pop_back();
-			sessions.pop_back();
-			
-			ResetEvent(hStopEvent);
-			SetEvent(hConfirmEvent);
+			unique_lock<mutex> lock(sessionsMutex);
+			sessions.erase(m.header.from);
+			//Message::send(s, m.header.from, MR_BROKER, MT_CONFIRM);
 			break;
 		}
-		case 2:
+		case MT_GETDATA:
 		{
-			header h;
-			wstring data = getData(h);
-			//	string message = getMessage(h);
-			//	sessions[i]->addMessage(MT_DATA, message);
-			//	HANDLE hFile = CreateFile(L"file.dat", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, 0);
-			////	SetFilePointer
-
-			//	DWORD dwDone;
-			//	WriteFile(hFile, &i, sizeof(i), &dwDone, NULL);
-			//	wcout << dwDone << endl;
-			//	CloseHandle(hFile);
-			wstring message(data.begin(), data.end());
-			if (h.addr == -2)
+			unique_lock<mutex> lock(sessionsMutex);
+			auto iSession = sessions.find(m.header.from);
+			if (iSession != sessions.end())
 			{
-				SafeWrite(L"Сообщение отправлено всем потокам.");
-				for (auto& sess : sessions)
-					sess->addMessage(MT_DATA, message);
-				SafeWrite(L"Главный поток:", message);
+				iSession->second->send(s);
 			}
-			else if (h.addr == -1)
+			break;
+		}
+		default:
+		{
+			unique_lock<mutex> lock(sessionsMutex);
+			auto iSessionFrom = sessions.find(m.header.from);
+			if (iSessionFrom != sessions.end())
 			{
-				SafeWrite(L"Главный поток:", message);
-			}
-			else
-			{
-				SafeWrite(L"Сообщение записано в .txt файл потока", h.addr);
-				int index = h.addr;
-				if (index >= 0 && index < sessions.size())
+				auto iSessionTo = sessions.find(m.header.to);
+				if (iSessionTo != sessions.end())
 				{
-					sessions[index]->addMessage(MT_DATA, message);
+					iSessionTo->second->add(m);
 				}
+				else if (m.header.to == MR_ALL)
+				{
+					for (auto& pair : sessions)
+					{
+						if (pair.first != m.header.from)
+							pair.second->add(m);
+					}
+				}
+				//Message::send(s, m.header.from, MR_BROKER, MT_CONFIRM);
 			}
-
-			ResetEvent(hSendEvent);
-			SetEvent(hConfirmEvent);
 			break;
-		}
-		case 3:
-		{
-			for (auto& session : sessions)
-			{
-				session->addMessage(MT_CLOSE);
-			}
-			for (auto& thread : threads)
-			{
-				if (thread.joinable())
-					thread.join();
-			}
-			SetEvent(hConfirmEvent);
-			DeleteCriticalSection(&cs);
-			return 0;
 		}
 		}
 	}
-	DeleteCriticalSection(&cs);
+	catch (std::exception& e)
+	{
+		std::wcerr << "Exception: " << e.what() << endl;
+	}
+}
+
+
+int main(int argc, char* argv[])
+{
+	std::locale::global(std::locale("rus_rus.866"));
+	wcin.imbue(std::locale());
+	wcout.imbue(std::locale());
+
+	//SetConsoleOutputCP(65001);
+	//SetConsoleCP(65001);
+	//wcout.imbue(locale("ru_RU.UTF-8"));
+
+	try
+	{
+		int port = 12345;
+		boost::asio::io_context io;
+		tcp::acceptor a(io, tcp::endpoint(tcp::v4(), port));
+
+		//launchClient(L"AsioClient.exe");
+		//launchClient(L"SharpClient.exe");
+
+		while (true)
+		{
+			tcp::socket socket(io);
+			a.accept(socket);
+			std::thread(processClient, a.accept()).detach();
+		}
+	}
+	catch (std::exception& e)
+	{
+		std::wcerr << "Exception: " << e.what() << endl;
+	}
+
     return 0;
 }
