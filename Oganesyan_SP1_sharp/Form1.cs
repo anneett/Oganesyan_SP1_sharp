@@ -21,20 +21,17 @@ namespace Oganesyan_SP1_sharp
         Process childProcess;
 
         [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
-            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        private static extern void startThread(int selected_thread, string text);
+            CharSet = CharSet.Unicode)]
+        private static extern void connect(int selected_thread, string text);
 
         [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
-            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        private static extern void stopThread(int selected_thread, string text);
+            CharSet = CharSet.Unicode)]
+        private static extern void disconnect(int selected_thread, string text);
 
         [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
-            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        private static extern void sendData(int selected_thread, string text);
+            CharSet = CharSet.Unicode)]
+        private static extern void sendCommand(int selected_thread, int commandId, string message);
 
-        [DllImport(@"C:\Users\egiaz\Documents\GitHub\Oganesyan_SP1\Oganesyan_SP1_sharp\x64\Debug\Oganesyan_Dll.dll",
-            CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        private static extern void confirmThread(int selected_thread, string text);
         public Form1()
         {
             InitializeComponent();
@@ -49,48 +46,26 @@ namespace Oganesyan_SP1_sharp
             }
 
             int N = (int)numericUpDown.Value;
+            int existingThreads = listBox.Items.Count - 2;
 
-            if (childProcess == null || childProcess.HasExited)
+            for (int i = 0; i < N; i++)
             {
-                childProcess = Process.Start("C:/Users/egiaz/Documents/GitHub/Oganesyan_SP1/Oganesyan_SP1_sharp/x64/Debug/Oganesyan_SP1_plus.exe");
-                childProcess.EnableRaisingEvents = true;
-            }
-            else
-            {
-                int existingThreads = listBox.Items.Count - 2;
-                for (int i = 0; i < N; i++)
-                {
-                    startThread(existingThreads + i, "StartThread");
-                    confirmThread(existingThreads + i, "Confirm");
-                    listBox.Items.Add($"Поток {existingThreads + i}");
-                }
+                sendCommand(existingThreads + i, 0, "Создать поток");
+                listBox.Items.Add($"Поток {existingThreads + i}");
             }
         }
         private void stop_Click(object sender, EventArgs e)
         {
-            if (childProcess == null || childProcess.HasExited)
-            {
-                return;
-            }
 
             if (listBox.Items.Count <= 2)
             {
-                stopThread(0, "Close");
-                confirmThread(0, "Confirm");
-                childProcess = null;
+                sendCommand(-1, 1, "Завершить все");
             }
             else
             {
-                stopThread(listBox.Items.Count - 3, "StopThread");
-                confirmThread(listBox.Items.Count - 3, "Confirm");
+                int threadId = listBox.Items.Count - 3;
+                sendCommand(threadId, 1, "Завершить поток");
                 listBox.Items.RemoveAt(listBox.Items.Count - 1);
-
-                if (listBox.Items.Count <= 2)
-                {
-                    stopThread(0, "Close");
-                    confirmThread(0, "Confirm");
-                    childProcess = null;
-                }
             }
         }
         private void send_Click(object sender, EventArgs e)
@@ -109,10 +84,10 @@ namespace Oganesyan_SP1_sharp
                         selectedThread = threadNum;
                     }
                 }
-             
-                sendData(selectedThread, textBox1.Text);
-                confirmThread(selectedThread, "Confirm");
+
+                sendCommand(selectedThread, 3, textBox1.Text);
             }
         }
+
     }
 }

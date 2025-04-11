@@ -13,7 +13,7 @@ using namespace std;
 //	CloseHandle(pi.hProcess);
 //}
 
-map<int, shared_ptr<Session>> sessions;
+//map<int, shared_ptr<Session>> sessions;
 mutex sessionsMutex;
 int maxID = 0;
 
@@ -81,21 +81,23 @@ void MyThread(Session* session)
 
 void processClient(tcp::socket s)
 {
-
 	try
 	{
+		vector<Session*> sessions;
+		vector<thread> threads;
 		Message m;
-		//vector<Session*> sessions;
-		//vector<thread> threads;
 		int code = m.receive(s);
-		cout << m.header.to << ": " << m.header.from << ": " << m.header.type << ": " << code << endl;
+		wcout << m.header.to << ": " << m.header.from << ": " << m.header.type << ": " << code << endl;
 		switch (code)
 		{
 		case MT_INIT:
 		{
 			unique_lock<mutex> lock(sessionsMutex);
 			auto session = make_shared<Session>(++maxID, m.data);
-			sessions[session->id] = session;
+			//sessions[session->id] = session;
+			//threads.emplace_back(MyThread, sessions.back());
+
+			sessions.push_back(sessions.size() + 1);
 			threads.emplace_back(MyThread, sessions.back());
 			//Message::send(s, session->id, MR_BROKER, MT_INIT);
 			break;
@@ -103,7 +105,12 @@ void processClient(tcp::socket s)
 		case MT_EXIT:
 		{
 			unique_lock<mutex> lock(sessionsMutex);
-			sessions.erase(m.header.from);
+			//sessions.erase(m.header.from);
+
+			sessions[i]->addMessage(MT_CLOSE);
+			threads.back().join();
+			threads.pop_back();
+			sessions.pop_back();
 			//Message::send(s, m.header.from, MR_BROKER, MT_CONFIRM);
 			break;
 		}
@@ -164,6 +171,7 @@ int main(int argc, char* argv[])
 		int port = 12345;
 		boost::asio::io_context io;
 		tcp::acceptor a(io, tcp::endpoint(tcp::v4(), port));
+		wcout << L"Сервер запущен на порту " << port << endl;
 
 		//launchClient(L"AsioClient.exe");
 		//launchClient(L"SharpClient.exe");
@@ -177,7 +185,7 @@ int main(int argc, char* argv[])
 	}
 	catch (std::exception& e)
 	{
-		std::wcerr << "Exception: " << e.what() << endl;
+		std::wcerr << L"Exception в main: " << e.what() << endl;
 	}
 
     return 0;

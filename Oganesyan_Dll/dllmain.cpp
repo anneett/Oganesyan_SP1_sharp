@@ -25,29 +25,21 @@ struct MessageHeader
     int size;
 };
 
-HANDLE hMutex = CreateMutex(NULL, FALSE, L"FileMapMutex");
-
 extern "C" {
 
-    __declspec(dllexport) void __stdcall startThread(int selected_thread, const wchar_t* text)
+    __declspec(dllexport) void __stdcall connect(int selected_thread, const wchar_t* text)
     {
-
+        Socket s;
+        s.Create();
     }
 
     __declspec(dllexport) void __stdcall stopThread(int selected_thread, const wchar_t* text)
     {
-
+        s.Close();
     }
 
-    __declspec(dllexport) void __stdcall sendData(int selected_thread, const wchar_t* text)
+    __declspec(dllexport) void __stdcall sendCommand(int selected_thread, const wchar_t* text)
     {
 
-        ReleaseMutex(hMutex);
     }
-
-    __declspec(dllexport) void __stdcall confirmThread(int selected_thread, const wchar_t* text)
-    {
-        
-    }
-
 }

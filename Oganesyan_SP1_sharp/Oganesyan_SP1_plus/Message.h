@@ -53,7 +53,7 @@ public:
 		receiveData(s, &header);
 		if (header.size)
 		{
-			data.resize(header.size / sizeof(wchar_t));
+			//data.resize(header.size / sizeof(wchar_t));
 			receiveData(s, data.data(), header.size);
 		}
 		return header.type;
